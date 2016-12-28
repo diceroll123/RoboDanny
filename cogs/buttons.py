@@ -115,6 +115,61 @@ class Buttons:
                 e.description = '%s\n%s' % (date, info)
                 return e
 
+        # check for definition card
+        definition_card = parent.find(".//ol/div[@class='g']/div")
+        if definition_card is not None:
+            try:
+                word_info = definition_card[0]
+                definition_info = definition_card[1]
+            except:
+                pass
+            else:
+                try:
+                    # inside is a <div> with two <span>
+                    # the first is the actual word, the second is the pronunciation
+                    words = word_info[0]
+                    e.title = words[0].text
+                    e.description = words[1].text
+                except:
+                    return None
+
+                # inside the table there's the actual definitions
+                # they're separated as noun/verb/adjective with a list
+                # of definitions
+                for row in definition_info:
+                    if len(row.attrib) != 0:
+                        # definitions are empty <tr>
+                        # if there is something in the <tr> then we're done
+                        # with the definitions
+                        break
+
+                    try:
+                        data = row[0]
+                        lexical_category = data[0].text
+                        body = []
+                        for index, definition in enumerate(data[1], 1):
+                            body.append('%s. %s' % (index, definition.text))
+
+                        e.add_field(name=lexical_category, value='\n'.join(body), inline=False)
+                    except:
+                        continue
+
+                return e
+
+        # check for "time in" card
+        time_in = parent.find(".//ol//div[@class='_Tsb _HOb _Qeb']")
+        if time_in is not None:
+            try:
+                time_place = ''.join(time_in.find("span[@class='_HOb _Qeb']").itertext()).strip()
+                the_time = ''.join(time_in.find("div[@class='_rkc _Peb']").itertext()).strip()
+                the_date = ''.join(time_in.find("div[@class='_HOb _Qeb']").itertext()).strip()
+            except:
+                return None
+            else:
+                e.title = time_place
+                e.description = '%s\n%s' % (the_time, the_date)
+                return e
+
         # check for weather card
         # this one is the most complicated of the group lol
         # everything is under a <div class="e"> which has a
@@ -238,6 +293,7 @@ class Buttons:
     @commands.command(aliases=['google'])
     async def g(self, *, query):
         """Searches google and gives you top result."""
+        await self.bot.type()
         try:
             card, entries = await self.get_google_entries(query)
         except RuntimeError as e:
